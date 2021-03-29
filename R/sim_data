@@ -1,0 +1,51 @@
+# generate data
+#n=300   #sample size
+p=10000  #dimension of mediators
+alpha=rep(0,p)   #coefficients (mediator~exposure)
+beta=rep(0,p)    #coefficients (outcome~mediators)
+
+alpha[1:4] <- c(0.5,0.6,0.5,0.6)
+beta[1:4] <- c(0.6,0.6,0.5,0.5)
+alpha[5:6] <- c(0.5,0.5)
+beta[7:8] <- c(0.5,0.5)
+
+sim_data = function(n, p, alpha, beta, C.max, r){
+  Z1<-matrix(rbinom(5*n, 1, 0.3),n,5)
+  Sigma <- matrix(c(1,r,r,r,r,r,1,r,r,r,r,r,1,r,r,r,r,r,1,r,r,r,r,r,1),5,5)
+  Z2<- mvrnorm(n, rep(0, 5), Sigma)
+  Z<-cbind(Z1,Z2)
+  
+  phi_e<-c(.2,.3,.3,.5,.6,.2,.3,.3,.5,.6)#phi: confounders --> exposure
+  phi_m<-rep(0.3,10) #confounders-->mediator
+  phi_y<-rep(0.3,10) #confounders-->outcome
+  e0<-rnorm(n, 0, 1)
+  lopr<-Z%*%phi_e+e0
+  pr<-1/(1+exp(-lopr))
+  X<-matrix(rbinom(n,1,pr),n,1)
+  
+  ck <- t(runif(p, 0, 1))
+  M <- matrix(0, n, p)                    
+  for(i in 1:n){
+    e <- rnorm(p)
+    M[i,] <- X[i]*alpha+Z[i,]%*%phi_m*rep(1,p)+e
+  }
+  colnames(M) <- paste0("M", 1:ncol(M))
+  
+  XMZ <- cbind(X, M, Z)      #  [X M]
+  B <- c(0.5, beta, phi_y)   # (p+1) times 1 
+  haz <- 0.5*exp(XMZ %*% B)  #  the response  n times 1
+  
+  ft <- rexp(n, haz)
+  ct <- runif(n, 0, C.max)         #censoring time
+  time <- pmin(ft, ct)             #observed time
+  status <- as.numeric(time==ft)   #censoring indicator
+  Y <- survival::Surv(time, status)
+  fit <- glm(X~Z[,1]+Z[,2]+Z[,3]+Z[,4]+Z[,5]+Z[,6]+Z[,7]+Z[,8]+Z[,9]+Z[,10],family = binomial(link='logit') )
+  PS = predict(fit, type='response')
+  PS <- matrix(PS, n, 1)
+  
+  return(list(haz=haz, Y=Y, M=M, X=X, Z=Z, ps1=PS, ps2=pr, status=status))
+}
+
+#generate a sample data
+simdat<-sim_data(n=300,p=10000,alpha = alpha,beta = beta,C.max=1.2,r=0.3)
