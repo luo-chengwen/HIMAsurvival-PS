@@ -18,8 +18,7 @@ sim_data = function(n, p, alpha, beta, C.max, r){
   phi_e<-c(.2,.3,.3,.5,.6,.2,.3,.3,.5,.6)#phi: confounders --> exposure
   phi_m<-rep(0.3,10) #confounders-->mediator
   phi_y<-rep(0.3,10) #confounders-->outcome
-  e0<-rnorm(n, 0, 1)
-  lopr<-Z%*%phi_e+e0
+  lopr<-Z%*%phi_e
   pr<-1/(1+exp(-lopr))
   X<-matrix(rbinom(n,1,pr),n,1)
   
